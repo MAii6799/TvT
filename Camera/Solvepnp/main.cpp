@@ -5,7 +5,7 @@
 
 int main(){
 
-    cv::Mat src=cv::imread("../armors/21.jpg");
+    cv::Mat src=cv::imread("../Picture/21.jpg");
     if (src.empty()){
         std::cerr << "Error: Image not found!" << std::endl;
         return -1;
@@ -49,9 +49,8 @@ int main(){
     }
     cv::imshow("Result", src);
 
-
+    std::vector<cv::Point2f> allVertices; // 存储所有4个顶点（左上下，右上下）
     if (contours.size() == 2) {
-        std::vector<cv::Point2f> allVertices; // 存储所有4个顶点（左上下，右上下）
         // 处理两个灯条
         for (int i = 0; i < 2; ++i) {
             cv::RotatedRect rect = cv::minAreaRect(contours[i]);
@@ -92,17 +91,38 @@ int main(){
     }
     cv::imshow("Result", src);
 
-    //图像二维点坐标
+    
+    //世界坐标系三维点坐标
     std::vector<cv::Point3f> objectPoints = {
-        cv::Point3f(-60, -30, 0),   // 左灯条上顶点
-        cv::Point3f(-60, 30, 0),    // 左灯条下顶点
-        cv::Point3f(60, -30, 0),    // 右灯条上顶点
-        cv::Point3f(60, 30, 0)      // 右灯条下顶点
+        cv::Point3f(0,5.5, 0),   // 左灯条上顶点
+        cv::Point3f(0,0,0),    // 左灯条下顶点
+        cv::Point3f(13.5,5.5, 0),    // 右灯条上顶点
+        cv::Point3f(13.5, 0, 0)      // 右灯条下顶点
     };
 
 ///solvepnp///
-
+    cv::Mat cameraMatrix=(cv::Mat_<double>(3,3)<< 
+    2065.0580175762857, 0.0, 658.9098266395495, 
+    0.0, 2086.886458338243, 531.5333174739342, 
+    0.0, 0.0, 1.0);
+    cv::Mat distCoeffs=(cv::Mat_<double>(1,5)<<
+    -0.051836613762195866, 0.29341513924119095,
+     0.001501183796729562, 0.0009386915104617738, 0.0);
     
+    cv::Mat rvec, tvec;
+    bool success = cv::solvePnP(objectPoints, allVertices, cameraMatrix, distCoeffs, rvec, tvec);
+
+    if (success) {
+        // 计算距离（单位：米）
+        double distance = cv::norm(tvec) / 100.0; //世界坐标单位是厘米
+        std::cout << "Distance to armor: " << distance << " meters" << std::endl;
+        std::cout << "rvec:" <<rvec<< std::endl;
+        
+        std::string distanceText = "Distance: " + std::to_string(distance) + " meters";
+        cv::putText(src, distanceText, cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
+    }
+
+    cv::imshow("Result", src);
     cv::waitKey(0);
     return 0;
 }
