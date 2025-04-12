@@ -1,116 +1,199 @@
-#include <opencv2/opencv.hpp>
 #include <iostream>
+#include <opencv2/opencv.hpp>
 #include <vector>
-#include <algorithm>
+
+///判断是否为灯条///
+bool IsLight(const cv::RotatedRect& minRect,double min_aspect_ratio= 3.0,double max_aspect_ratio = 4.0) {
+    // 获取矩形的长和宽
+    float width = minRect.size.width;
+    float height = minRect.size.height;
+    // 计算长宽比
+    float aspect_ratio = std::max(width, height) / std::min(width, height);
+    // 判断长宽比是否在合理范围内
+    return (aspect_ratio >= min_aspect_ratio && aspect_ratio <= max_aspect_ratio);
+}
+
+// ///将灯条两两匹配为装甲板///
+
+// // 判断两个灯条是否平行（角度差小于某个阈值）
+// bool areParallel(const cv::RotatedRect& rect1, const cv::RotatedRect& rect2, double angle_threshold = 10.0) {
+//     // 计算两个矩形的角度差
+//     float angle_diff = std::abs(rect1.angle - rect2.angle);
+    
+//     // 平行的条件是角度差小于阈值（角度差可能超过180度，因此需要取最小差值）
+//     if (angle_diff > 180) {
+//         angle_diff = 360 - angle_diff;
+//     }
+    
+//     return angle_diff < angle_threshold;
+// }
+
+// // 判断大矩形的长宽比是否接近2.45
+// bool isValidAspectRatio(const cv::Point2f& top_left, const cv::Point2f& bottom_left, 
+//                         const cv::Point2f& top_right, const cv::Point2f& bottom_right, 
+//                         double target_aspect_ratio = 2.45, double aspect_ratio_tolerance = 0.2) {
+//     // 计算大矩形的宽和高
+//     double width = cv::norm(top_left - top_right); // 上边
+//     double height = cv::norm(top_left - bottom_left); // 左边
+    
+//     // 计算长宽比
+//     double aspect_ratio = std::max(width, height) / std::min(width, height);
+    
+//     // 判断长宽比是否接近目标值
+//     return std::abs(aspect_ratio - target_aspect_ratio) <= aspect_ratio_tolerance;
+// }
+
+// std::vector<cv::RotatedRect> matchLightBars(const std::vector<cv::RotatedRect>& lightBars) {
+//     std::vector<cv::RotatedRect> matchedRects;
+
+//     // 遍历每对灯条
+//     for (size_t i = 0; i < lightBars.size(); i++) {
+//         for (size_t j = i + 1; j < lightBars.size(); j++) {
+//             const cv::RotatedRect& rect1 = lightBars[i];
+//             const cv::RotatedRect& rect2 = lightBars[j];
+
+//             // 判断两个灯条是否平行
+//             if (areParallel(rect1, rect2)) {
+//                 // 获取两个灯条的上下顶点
+//                 cv::Point2f top_left1 = rect1.center - rect1.size / 2.0f;
+//                 cv::Point2f bottom_left1 = rect1.center + rect1.size / 2.0f;
+//                 cv::Point2f top_left2 = rect2.center - rect2.size / 2.0f;
+//                 cv::Point2f bottom_left2 = rect2.center + rect2.size / 2.0f;
+
+//                 // 计算大矩形的四个顶点
+//                 cv::Point2f top_left = cv::Point2f(std::min(top_left1.x, top_left2.x), std::min(top_left1.y, top_left2.y));
+//                 cv::Point2f bottom_left = cv::Point2f(std::min(bottom_left1.x, bottom_left2.x), std::min(bottom_left1.y, bottom_left2.y));
+//                 cv::Point2f top_right = cv::Point2f(std::max(top_left1.x, top_left2.x), std::max(top_left1.y, top_left2.y));
+//                 cv::Point2f bottom_right = cv::Point2f(std::max(bottom_left1.x, bottom_left2.x), std::max(bottom_left1.y, bottom_left2.y));
+
+//                 // 判断大矩形的长宽比是否接近2.45
+//                 if (isValidAspectRatio(top_left, bottom_left, top_right, bottom_right)) {
+//                     // 符合条件的灯条对，存储大矩形（返回旋转矩形）
+//                     cv::RotatedRect bigRect = cv::minAreaRect(cv::Mat(std::vector<cv::Point2f>{top_left, top_right, bottom_right, bottom_left}));
+//                     matchedRects.push_back(bigRect); // 存储匹配的矩形
+//                 }
+//             }
+//         }
+//     }
+    
+//     return matchedRects;
+// }
+////实现不了，暂时放弃了///
 
 int main(){
-
+    ///不管了先输入图像///
     cv::Mat src=cv::imread("../Picture/21.jpg");
     if (src.empty()){
         std::cerr << "Error: Image not found!" << std::endl;
         return -1;
     }
 
-    cv::Mat gray, mask;
-    cv::cvtColor(src,gray,cv::COLOR_BGR2GRAY);
-    
-    ///自适应阈值处理///
-    cv::threshold(gray,mask,200,255,cv::THRESH_BINARY);
-    cv::imshow("Mask",mask);
+    ///图像预处理///
+    std::vector<cv::Mat> channels;
+    cv::split(src,channels);//分离颜色通道
 
-    ///开闭运算///
-    cv::Mat kernel=cv::getStructuringElement(cv::MORPH_RECT,cv::Size(5,5));
-    cv::morphologyEx(mask,mask,cv::MORPH_CLOSE,kernel); 
-    cv::morphologyEx(mask,mask, cv::MORPH_OPEN,kernel); 
+    cv::Mat blue_mask;
+    cv::subtract(channels[0],channels[2],blue_mask);//突出蓝色区域
 
-    ///canny检测///
+    cv::Mat binary_image;
+    cv::threshold(blue_mask,binary_image,50,255,cv::THRESH_BINARY);//二值化操作
+
+    cv::Mat morph_image;
+    cv::Mat kernel=cv::Mat::ones(5,5,CV_8U);
+    cv::morphologyEx(binary_image,morph_image,cv::MORPH_CLOSE,kernel);
+    cv::morphologyEx(morph_image,morph_image,cv::MORPH_OPEN,kernel);//开闭运算去噪
+
+    cv::imshow("BINARY",morph_image);
+    ///查找灯条轮廓///
     cv::Mat edges;
-    cv::Canny(mask,edges,50,150);
-    cv::imshow("Edges",edges);
+    cv::Canny(morph_image,edges,100,200);//边缘检测
 
-    ///查找轮廓///
-    std::vector<std::vector<cv::Point>> contours;
-    cv::findContours(edges,contours,cv::RETR_EXTERNAL,cv::CHAIN_APPROX_SIMPLE);
+    std::vector<std::vector<cv::Point>> contours;//存储检测到的所有轮廓
+    std::vector<cv::RotatedRect> validRects;//存储检测到的有效灯条
 
-    for (const auto& contour: contours){
-        double area = cv::contourArea(contour);
-        ///删除面积不在[300, 600]之间的轮廓 ///刚好可以把这个头顶上的灯带去掉。。嘿嘿///
-        contours.erase(
-        std::remove_if(
-            contours.begin(), 
-            contours.end(),
-            [](const std::vector<cv::Point>& contour) {
-                double area = cv::contourArea(contour);
-                return (area < 300) || (area > 600);  // 删除不满足条件的轮廓
-            }
-        ),
-        contours.end()
-    );
-    }
-    cv::imshow("Result", src);
+    cv::findContours(edges,contours,cv::RETR_EXTERNAL,cv::CHAIN_APPROX_SIMPLE);//查找轮廓
 
-    std::vector<cv::Point2f> allVertices; // 存储所有4个顶点（左上下，右上下）
-    if (contours.size() == 2) {
-        // 处理两个灯条
-        for (int i = 0; i < 2; ++i) {
-            cv::RotatedRect rect = cv::minAreaRect(contours[i]);
-            cv::Point2f vertices[4];
-            rect.points(vertices);
-            
-            // 绘制灯条矩形框
-            for (int j = 0; j < 4; ++j) {
-                cv::line(src, vertices[j], vertices[(j+1)%4], cv::Scalar(0, 255, 255), 2);
-            }
-            
-            // 按y坐标排序顶点，确定上下顶点
-            std::sort(vertices, vertices + 4, [](const cv::Point2f& a, const cv::Point2f& b) {
-                return a.y < b.y;
-            });
-            
-            // 计算上下顶点（取y最小和最大的两个点的中点）
-            cv::Point2f top = (vertices[0] + vertices[1]) * 0.5f;
-            cv::Point2f bottom = (vertices[2] + vertices[3]) * 0.5f;
-            
-            // 存储顶点，左灯条在前，右灯条在后
-            allVertices.push_back(top);
-            allVertices.push_back(bottom);
-            
-            // 为当前灯条绘制顶点和编号
-            cv::Scalar color = (i == 0) ? cv::Scalar(0, 0, 255) : cv::Scalar(255, 0, 0); // 左红右蓝
-            cv::circle(src, top, 6, color, -1);
-            cv::circle(src, bottom, 6, color, -1);
-            
-            // 添加编号文本 (1-2为左灯条，3-4为右灯条)
-            int topId = i * 2 + 1;
-            int bottomId = i * 2 + 2;
-            cv::putText(src, std::to_string(topId), top + cv::Point2f(5, 5), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
-            cv::putText(src, std::to_string(bottomId), bottom + cv::Point2f(5, 5), 
-                       cv::FONT_HERSHEY_SIMPLEX, 0.6, cv::Scalar(255, 255, 255), 2);
+    for(size_t i=0;i<contours.size();i++){
+        cv::RotatedRect rect=cv::minAreaRect(contours[i]);
+
+        if (IsLight(rect)) {
+            // 如果符合条件，保存该矩形
+            // 如果符合条件，保存该矩形
+        validRects.push_back(rect);
+        cv::Point2f rect_points[4];
+        rect.points(rect_points);
+        for (int j = 0; j < 4; j++) {
+            cv::line(src, rect_points[j], rect_points[(j + 1) % 4], cv::Scalar(0, 255, 0), 2);
+            std::string label = std::to_string(j);  // 标号是0, 1, 2, 3
+            cv::putText(src, label, rect_points[j], cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0, 0, 255), 2);     
         }
-    }
-    cv::imshow("Result", src);
+        }
+    }//绘制最小矩形
 
-    
-    //世界坐标系三维点坐标
-    std::vector<cv::Point3f> objectPoints = {
+    cv::imshow("Detected Rectangles",src);
+
+    // ///调用匹配函数///
+    // std::vector<cv::RotatedRect> matchedRects = matchLightBars(validRects);
+
+    // for (const auto& rect : matchedRects) {
+    //     cv::Point2f rect_points[4];
+    //     rect.points(rect_points);
+    //     std::vector<cv::Point> poly_points;
+    //     for (int i = 0; i < 4; i++) {
+    //         poly_points.push_back(rect_points[i]);
+    //     }
+    //     cv::polylines(src, poly_points, true, cv::Scalar(0, 255, 0), 2);  // 绘制大矩形
+    // }
+
+    // // 显示绘制结果
+    // cv::imshow("Detected Armor Plates", src);
+
+///solvepnp///
+  
+    std::vector<cv::Point3f> object_Points = {
         cv::Point3f(0,5.5, 0),   // 左灯条上顶点
         cv::Point3f(0,0,0),    // 左灯条下顶点
         cv::Point3f(13.5,5.5, 0),    // 右灯条上顶点
         cv::Point3f(13.5, 0, 0)      // 右灯条下顶点
     };
 
-///solvepnp///
+    std::vector<cv::Point2f> image_Points;   // 2D点（图像中的对应点）
+
+    for (size_t i = 0; i < validRects.size(); i++) {
+    const auto& rect = validRects[i];
+    
+    // 提取旋转矩形的四个顶点
+    cv::Point2f rect_points[4];
+    rect.points(rect_points);  // 获取旋转矩形的四个顶点
+
+    // 假设顺序是：左上，右上，右下，左下（根据旋转矩形的顺序）
+    cv::Point2f top_left = rect_points[0];
+    cv::Point2f top_right = rect_points[1];
+    cv::Point2f bottom_right = rect_points[2];
+    cv::Point2f bottom_left = rect_points[3];
+
+    // 计算上顶点（左上和右上的中点）
+    cv::Point2f upper_mid = (top_left + top_right) / 2.0f;
+
+    // 计算下顶点（左下和右下的中点）
+    cv::Point2f lower_mid = (bottom_left + bottom_right) / 2.0f;
+
+    // 对应的2D图像坐标
+    image_Points.push_back(upper_mid);  // 图像中的上顶点
+    image_Points.push_back(lower_mid);  // 图像中的下顶点
+}
+
     cv::Mat cameraMatrix=(cv::Mat_<double>(3,3)<< 
-    2065.0580175762857, 0.0, 658.9098266395495, 
-    0.0, 2086.886458338243, 531.5333174739342, 
-    0.0, 0.0, 1.0);
+        2065.0580175762857, 0.0, 658.9098266395495, 
+        0.0, 2086.886458338243, 531.5333174739342, 
+        0.0, 0.0, 1.0);
     cv::Mat distCoeffs=(cv::Mat_<double>(1,5)<<
-    -0.051836613762195866, 0.29341513924119095,
-     0.001501183796729562, 0.0009386915104617738, 0.0);
+        -0.051836613762195866, 0.29341513924119095,
+         0.001501183796729562, 0.0009386915104617738, 0.0);
+
     
     cv::Mat rvec, tvec;
-    bool success = cv::solvePnP(objectPoints, allVertices, cameraMatrix, distCoeffs, rvec, tvec);
+    bool success = cv::solvePnP(object_Points, image_Points, cameraMatrix, distCoeffs, rvec, tvec);
 
     if (success) {
         // 计算距离（单位：米）
@@ -124,5 +207,8 @@ int main(){
 
     cv::imshow("Result", src);
     cv::waitKey(0);
+
     return 0;
+
+
 }
