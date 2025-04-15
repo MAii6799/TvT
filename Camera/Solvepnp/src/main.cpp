@@ -82,7 +82,7 @@ bool IsLight(const cv::RotatedRect& minRect,double min_aspect_ratio= 3.0,double 
 
 int main(){
     ///不管了先输入图像///
-    cv::Mat src=cv::imread("../Picture/21.jpg");
+    cv::Mat src=cv::imread("../Picture/1.jpg");
     if (src.empty()){
         std::cerr << "Error: Image not found!" << std::endl;
         return -1;
