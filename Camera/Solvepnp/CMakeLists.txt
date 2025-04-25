@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(SOLVEPNP_ARMORS)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # 查找 OpenCV 包
 find_package(OpenCV REQUIRED)
 
