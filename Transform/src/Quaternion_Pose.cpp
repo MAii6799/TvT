@@ -1,8 +1,7 @@
 #include "../include/Quaternion_Pose.h"
 
 Quaternion::Quaternion(double w, double x, double y, double z)
-    : w(w), x(x), y(y), z(z) {
-}
+    : w(w), x(x), y(y), z(z) {}
 Quaternion::Quaternion(const Quaternion& other){
     w = other.w;
     x = other.x;
