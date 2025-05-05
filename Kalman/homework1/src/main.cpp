@@ -25,7 +25,7 @@ int main() {
     kf.setProcessNoiseCovariance(Q);
 
     Eigen::MatrixXd R(measure_dim, measure_dim);
-    R <<150;
+    R <<1;
     kf.setMeasurementNoiseCovariance(R);
 
     Eigen::VectorXd init_state(state_dim);

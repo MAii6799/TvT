@@ -164,6 +164,7 @@ std::vector<cv::Point3f> object_Points = {
             double distance = cv::norm(tvec);
             std::cout << "Distance to armor: " << distance << " meters" << std::endl;
             std::cout << "rvec:" <<rvec<< std::endl;
+            std::cout << "tvec:" <<tvec<< std::endl;
     
             std::string distanceText = "Distance: " + std::to_string(distance) + " meters";
             cv::putText(src, distanceText, cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 255, 0), 2);
